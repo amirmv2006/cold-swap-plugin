@@ -1,0 +1,38 @@
+<idea-plugin>
+  <id>ir.amv.os.intellij.plugins.cold.swap.action</id>
+  <name>Cold Swap Plugin</name>
+  <version>1.0</version>
+  <vendor email="support@yourcompany.com" url="http://www.yourcompany.com">YourCompany</vendor>
+
+  <description><![CDATA[
+      This plugin will cold-swap!<br>
+      <em>most HTML tags may be used</em>
+    ]]></description>
+
+  <change-notes><![CDATA[
+      Add change notes here.<br>
+      <em>most HTML tags may be used</em>
+    ]]>
+  </change-notes>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
+  <idea-version since-build="145.0"/>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+       on how to target different products -->
+  <!-- uncomment to enable plugin in all products
+  <depends>com.intellij.modules.lang</depends>
+  -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+  </extensions>
+
+  <actions>
+    <!-- Add your actions here -->
+    <action class="ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction" id="coldSwapAction" text="Cold Swap" description="Cold Swap" icon="/icons/cold-swap.png">
+        <add-to-group group-id="RunMenu" anchor="first"/>
+    </action>
+  </actions>
+
+</idea-plugin>
