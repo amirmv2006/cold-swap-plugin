@@ -9,7 +9,7 @@ import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.jar.JarEntry;
@@ -33,15 +33,63 @@ public class DestinationJarTransferer
             searchResult = searchRec(baseRootPath, fqn, module);
             if (searchResult != null) {
                 Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult.file + " -> " + searchResult.jarEntry);
+                List<JarModification> modifications = new ArrayList<>();
                 if (virtualFile.isDirectory()) {
-
+                    VirtualFile[] children = virtualFile.getChildren();
+                    List<JarEntry> destChildren = getJarEntriesUnder(searchResult.file, searchResult.jarEntry.getName());
+                    for (JarEntry destChild : destChildren) {
+                        boolean exists = false;
+                        for (VirtualFile child : children) {
+                            if (destChild.getName().substring(0, destChild.getName().length() - 1).endsWith(child.getName())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            modifications.add(new JarModification(JarModification.ModificationType.delete, destChild, null));
+                        }
+                    }
+                    for (VirtualFile child : children) {
+                        boolean exists = false;
+                        for (JarEntry destChild : destChildren) {
+                            if (destChild.getName().substring(0, destChild.getName().length() - 1).endsWith(child.getName())) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            modifications.add(new JarModification(JarModification.ModificationType.add, new JarEntry(fqn + "/" + child.getName()), child));
+                        }
+                    }
                 } else {
-                    updateJarFile(searchResult.file, Arrays.asList(new JarModification(JarModification.ModificationType.update, searchResult.jarEntry, virtualFile)));
+                    modifications.add(new JarModification(JarModification.ModificationType.update, searchResult.jarEntry, virtualFile));
+                }
+                if (!modifications.isEmpty()) {
+                    updateJarFile(searchResult.file, modifications);
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private List<JarEntry> getJarEntriesUnder(File file, String parent) {
+        List<JarEntry> result = new ArrayList<>();
+        try (JarFile jarFile = new JarFile(file)) {
+            Enumeration jarEntries = jarFile.entries();
+            while (jarEntries.hasMoreElements()) {
+                JarEntry entry = (JarEntry) jarEntries.nextElement();
+                if (entry.getName().startsWith(parent) && !entry.getName().equals(parent)) {
+                    String substring = entry.getName().substring(parent.length());
+                    substring = substring.substring(0, substring.length() - 1);
+                    if (!substring.contains("/")) {
+                        result.add(entry);
+                    }
+                }
+            }
+        } catch (IOException e) {
+        }
+        return result;
     }
 
     private SearchResult searchRec(File file, String fqn, Module module) throws IOException {
@@ -136,18 +184,18 @@ public class DestinationJarTransferer
                 for (JarModification modification : modifications) {
                     if (modification.modificationType.equals(JarModification.ModificationType.update) ||
                             modification.modificationType.equals(JarModification.ModificationType.add)) {
-                        InputStream fis = modification.newFile.getInputStream();
-                        try {
-                            byte[] buffer = new byte[1024];
-                            int bytesRead = 0;
-                            JarEntry entry = new JarEntry(modification.jarEntry.getName());
-                            tempJarOutputStream.putNextEntry(entry);
-                            while ((bytesRead = fis.read(buffer)) != -1) {
-                                tempJarOutputStream.write(buffer, 0, bytesRead);
+                        JarEntry entry = new JarEntry(modification.jarEntry.getName());
+                        tempJarOutputStream.putNextEntry(entry);
+                        if (!modification.newFile.isDirectory()) {
+                            try (InputStream fis = modification.newFile.getInputStream()) {
+                                byte[] buffer = new byte[1024];
+                                int bytesRead = 0;
+                                while ((bytesRead = fis.read(buffer)) != -1) {
+                                    tempJarOutputStream.write(buffer, 0, bytesRead);
+                                }
                             }
-                        } finally {
-                            fis.close();
                         }
+                        tempJarOutputStream.closeEntry();
                     }
                 }
                 jarUpdated = true;
