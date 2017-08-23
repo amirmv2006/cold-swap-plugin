@@ -28,9 +28,7 @@ import java.io.*;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ColdSwapAction
         extends AnAction {
@@ -70,7 +68,9 @@ public class ColdSwapAction
                                     moduleOutputFilter = new ModuleOutputFilterByDateImpl(simpleDateFormat.parse(reader.readLine()));
                                     for (Module module : modules) {
                                         Map<String, VirtualFile> virtualFiles = moduleOutputFilter.filterModuleOutput(module);
-                                        for (String relPath : virtualFiles.keySet()) {
+                                        List<String> strings = new ArrayList<>(virtualFiles.keySet());
+                                        Collections.sort(strings);
+                                        for (String relPath : strings) {
                                             logger.warn("Dirty" + relPath);
                                             destinationExtractedTransferer.transfer(module, relPath, virtualFiles.get(relPath));
                                             destinationJarTransferer.transfer(module, relPath, virtualFiles.get(relPath));
@@ -81,11 +81,12 @@ public class ColdSwapAction
                                 e.printStackTrace();
                             }
                         }
-                        OutputStream outputStream = child.getOutputStream(this);
-                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-                        writer.write(simpleDateFormat.format(new Date()));
-                        writer.flush();
-                        writer.close();
+                        // FIXME re-enable writing to the file
+//                        OutputStream outputStream = child.getOutputStream(this);
+//                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+//                        writer.write(simpleDateFormat.format(new Date()));
+//                        writer.flush();
+//                        writer.close();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

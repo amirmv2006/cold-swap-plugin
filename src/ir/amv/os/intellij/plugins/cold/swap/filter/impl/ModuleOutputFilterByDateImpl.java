@@ -27,6 +27,7 @@ public class ModuleOutputFilterByDateImpl
         VirtualFile moduleOutputDirectory = CompilerPaths.getModuleOutputDirectory(module, false);
         Map<String, VirtualFile> result = new HashMap<>();
         if (moduleOutputDirectory != null) {
+            moduleOutputDirectory.refresh(false, true);
             VirtualFile[] children = moduleOutputDirectory.getChildren();
             for (VirtualFile child : children) {
                 innerFilterRecursively("", child, result);
@@ -41,16 +42,14 @@ public class ModuleOutputFilterByDateImpl
         } else {
             relativePath = relativePath + "/" + virtualFile.getName();
         }
+        long lastModified = new File(virtualFile.getCanonicalPath()).lastModified();
+        if (lastModified > date.getTime()) {
+            result.put(relativePath, virtualFile);
+        }
         if (virtualFile.isDirectory()) {
             VirtualFile[] children = virtualFile.getChildren();
             for (VirtualFile child : children) {
                 innerFilterRecursively(relativePath, child, result);
-            }
-        } else {
-            long lastModified = new File(virtualFile.getCanonicalPath()).lastModified();
-            logger.warn(new Date(lastModified).toString());
-            if (lastModified > date.getTime()) {
-                result.put(relativePath, virtualFile);
             }
         }
     }

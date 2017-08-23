@@ -33,7 +33,11 @@ public class DestinationJarTransferer
             searchResult = searchRec(baseRootPath, fqn, module);
             if (searchResult != null) {
                 Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult.file + " -> " + searchResult.jarEntry);
-                updateJarFile(searchResult.file, Arrays.asList(new JarModification(JarModification.ModificationType.update, searchResult.jarEntry, virtualFile)));
+                if (virtualFile.isDirectory()) {
+
+                } else {
+                    updateJarFile(searchResult.file, Arrays.asList(new JarModification(JarModification.ModificationType.update, searchResult.jarEntry, virtualFile)));
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -55,7 +59,7 @@ public class DestinationJarTransferer
                 Enumeration<JarEntry> entries = jarFile.entries();
                 while (entries.hasMoreElements()) {
                     JarEntry jarEntry = entries.nextElement();
-                    if (jarEntry.getName().equals(fqn)) {
+                    if (jarEntry.getName().equals(fqn) || jarEntry.getName().equals(fqn + "/")) {
                         return new SearchResult(jarEntry, file);
                     }
                 }

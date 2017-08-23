@@ -8,7 +8,7 @@ public class DestinationNameApproximateMatcher
     @Override
     public boolean matches(String moduleName, String destinationName) {
         String destinationNameTransformed = transform(destinationName);
-        String moduleNameTransformed = transform(destinationName);
+        String moduleNameTransformed = transform(moduleName);
         return moduleNameTransformed.equalsIgnoreCase(destinationNameTransformed);
     }
 
