@@ -184,15 +184,16 @@ public class DestinationJarTransferer
                 for (JarModification modification : modifications) {
                     if (modification.modificationType.equals(JarModification.ModificationType.update) ||
                             modification.modificationType.equals(JarModification.ModificationType.add)) {
+                        if (modification.newFile.isDirectory()) {
+                            continue;
+                        }
                         JarEntry entry = new JarEntry(modification.jarEntry.getName());
                         tempJarOutputStream.putNextEntry(entry);
-                        if (!modification.newFile.isDirectory()) {
-                            try (InputStream fis = modification.newFile.getInputStream()) {
-                                byte[] buffer = new byte[1024];
-                                int bytesRead = 0;
-                                while ((bytesRead = fis.read(buffer)) != -1) {
-                                    tempJarOutputStream.write(buffer, 0, bytesRead);
-                                }
+                        try (InputStream fis = modification.newFile.getInputStream()) {
+                            byte[] buffer = new byte[1024];
+                            int bytesRead = 0;
+                            while ((bytesRead = fis.read(buffer)) != -1) {
+                                tempJarOutputStream.write(buffer, 0, bytesRead);
                             }
                         }
                         tempJarOutputStream.closeEntry();
