@@ -161,9 +161,14 @@ public class DestinationJarTransferer
                     JarEntry entry = (JarEntry) jarEntries.nextElement();
                     boolean skip = false;
                     for (JarModification modification : modifications) {
-                        if (modification.jarEntry.getName().equals(entry.getName())) {
-                            if (modification.modificationType.equals(JarModification.ModificationType.delete) ||
-                                    modification.modificationType.equals(JarModification.ModificationType.update)) {
+                        if (entry.getName().startsWith(modification.jarEntry.getName())) {
+                            if (modification.modificationType.equals(JarModification.ModificationType.delete)) {
+                                skip = true;
+                                break;
+                            }
+                        }
+                        if (entry.getName().equals(modification.jarEntry.getName())) {
+                            if (modification.modificationType.equals(JarModification.ModificationType.update)) {
                                 skip = true;
                                 break;
                             }
@@ -173,27 +178,30 @@ public class DestinationJarTransferer
                         continue;
                     }
                     InputStream entryInputStream = jarFile.getInputStream(entry);
-                    tempJarOutputStream.putNextEntry(entry);
-                    byte[] buffer = new byte[1024];
                     int bytesRead = 0;
-                    while ((bytesRead = entryInputStream.read(buffer)) != -1) {
+                    byte[] buffer = new byte[1024];
+                    bytesRead = entryInputStream.read(buffer);
+                    if (bytesRead != -1) {
+                        tempJarOutputStream.putNextEntry(entry);
+                    }
+                    while (bytesRead != -1) {
                         tempJarOutputStream.write(buffer, 0, bytesRead);
+                        bytesRead = entryInputStream.read(buffer);
                     }
                 }
                 //Added the new files to the jar.
                 for (JarModification modification : modifications) {
                     if (modification.modificationType.equals(JarModification.ModificationType.update) ||
                             modification.modificationType.equals(JarModification.ModificationType.add)) {
-                        if (modification.newFile.isDirectory()) {
-                            continue;
-                        }
                         JarEntry entry = new JarEntry(modification.jarEntry.getName());
                         tempJarOutputStream.putNextEntry(entry);
-                        try (InputStream fis = modification.newFile.getInputStream()) {
-                            byte[] buffer = new byte[1024];
-                            int bytesRead = 0;
-                            while ((bytesRead = fis.read(buffer)) != -1) {
-                                tempJarOutputStream.write(buffer, 0, bytesRead);
+                        if (!modification.newFile.isDirectory()) {
+                            try (InputStream fis = modification.newFile.getInputStream()) {
+                                byte[] buffer = new byte[1024];
+                                int bytesRead = 0;
+                                while ((bytesRead = fis.read(buffer)) != -1) {
+                                    tempJarOutputStream.write(buffer, 0, bytesRead);
+                                }
                             }
                         }
                         tempJarOutputStream.closeEntry();

@@ -26,6 +26,8 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <!-- Add your extensions here -->
+    <projectConfigurable groupId="tools" displayName="Cold Swap Destinations" id="preferences.ColdSwapDestinations" instance="ir.amv.os.intellij.plugins.cold.swap.configure.ColdSwapConfigurable" />
+    <projectService serviceInterface="ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapConfigurationStoreObject" serviceImplementation="ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapConfigurationStoreObject"/>
   </extensions>
 
   <actions>
