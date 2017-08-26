@@ -8,8 +8,8 @@ import java.util.List;
 public class ColdSwapDestinationBaseDirConfig {
 
     public enum DestinationType {
-        JAR,
-        EXTRACTED
+        Jar,
+        Extracted
     }
 
     private String baseDirPath;
@@ -46,8 +46,7 @@ public class ColdSwapDestinationBaseDirConfig {
     public String toString() {
         String result = baseDirPath;
         if (exclusions != null && !exclusions.isEmpty()) {
-            result +=  '\'' +
-                    ", exclusions=" + exclusions;
+            result +=  ", excluding " + exclusions;
         }
         return result;
     }

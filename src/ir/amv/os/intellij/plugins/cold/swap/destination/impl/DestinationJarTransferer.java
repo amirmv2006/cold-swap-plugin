@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
@@ -27,7 +28,7 @@ public class DestinationJarTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile) {
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, Consumer<String> logger) {
         SearchResult searchResult = null;
         try {
             searchResult = searchRec(baseRootPath, fqn, module);
@@ -65,7 +66,7 @@ public class DestinationJarTransferer
                     modifications.add(new JarModification(JarModification.ModificationType.update, searchResult.jarEntry, virtualFile));
                 }
                 if (!modifications.isEmpty()) {
-                    updateJarFile(searchResult.file, modifications);
+                    updateJarFile(searchResult.file, modifications, logger);
                 }
             }
         } catch (IOException e) {
@@ -144,13 +145,12 @@ public class DestinationJarTransferer
         }
     }
 
-    public static void updateJarFile(File srcJarFile, List<JarModification> modifications) throws IOException {
+    public static void updateJarFile(File srcJarFile, List<JarModification> modifications, Consumer<String> logger) throws IOException {
         File srcJarTmp = new File(srcJarFile.getCanonicalPath() + ".bak");
         Files.copy(new FileInputStream(srcJarFile), Paths.get(srcJarTmp.toURI()));
         File tmpJarFile = new File(srcJarFile.getCanonicalPath());
         JarFile jarFile = new JarFile(srcJarTmp);
         boolean jarUpdated = false;
-
         try {
             JarOutputStream tempJarOutputStream = new JarOutputStream(new FileOutputStream(tmpJarFile));
 
@@ -164,12 +164,14 @@ public class DestinationJarTransferer
                         if (entry.getName().startsWith(modification.jarEntry.getName())) {
                             if (modification.modificationType.equals(JarModification.ModificationType.delete)) {
                                 skip = true;
+                                logger.accept("Removing " + modification.jarEntry.getName() + " from " + srcJarFile.getCanonicalPath());
                                 break;
                             }
                         }
                         if (entry.getName().equals(modification.jarEntry.getName())) {
                             if (modification.modificationType.equals(JarModification.ModificationType.update)) {
                                 skip = true;
+                                logger.accept("Removing old content for " + modification.jarEntry.getName() + " in " + srcJarFile.getCanonicalPath());
                                 break;
                             }
                         }
@@ -205,6 +207,7 @@ public class DestinationJarTransferer
                             }
                         }
                         tempJarOutputStream.closeEntry();
+                        logger.accept("Performing '" + modification.modificationType + "' on " + modification.jarEntry.getName() + " in " + srcJarFile.getCanonicalPath());
                     }
                 }
                 jarUpdated = true;

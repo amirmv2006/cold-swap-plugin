@@ -5,8 +5,6 @@ import com.intellij.history.LocalHistoryAction;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.compiler.CompileScope;
-import com.intellij.openapi.compiler.CompilerManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -21,9 +19,9 @@ import ir.amv.os.intellij.plugins.cold.swap.filter.IModuleOutputFilter;
 import ir.amv.os.intellij.plugins.cold.swap.filter.impl.ModuleOutputFilterByDateImpl;
 
 import java.io.*;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class ColdSwapAction
         extends AnAction {
@@ -42,8 +40,6 @@ public class ColdSwapAction
         Project[] openProjects = ProjectManager.getInstance().getOpenProjects();
         for (Project openProject : openProjects) {
             LocalHistoryAction last_deployed = LocalHistory.getInstance().startAction("Last Deployed");
-            CompilerManager compilerManager = CompilerManager.getInstance(openProject);
-            CompileScope projectCompileScope = compilerManager.createProjectCompileScope(openProject);
             Module[] modules = ModuleManager.getInstance(openProject).getModules();
             ApplicationManager.getApplication().runWriteAction(new Runnable() {
                 @Override
@@ -56,15 +52,33 @@ public class ColdSwapAction
                             child = baseDir.createChildData(this, name);
                         } else {
                             try {
+                                String lastModify = null;
                                 try (InputStream inputStream = child.getInputStream()) {
                                     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                                    moduleOutputFilter = new ModuleOutputFilterByDateImpl(simpleDateFormat.parse(reader.readLine()));
-                                    for (Module module : modules) {
-                                        Map<String, VirtualFile> virtualFiles = moduleOutputFilter.filterModuleOutput(module);
-                                        List<String> strings = new ArrayList<>(virtualFiles.keySet());
-                                        Collections.sort(strings);
-                                        for (String relPath : strings) {
-                                            transfer(openProject, module, relPath, virtualFiles.get(relPath));
+                                    lastModify = reader.readLine();
+                                    if (lastModify != null) {
+                                        moduleOutputFilter = new ModuleOutputFilterByDateImpl(simpleDateFormat.parse(lastModify));
+                                    }
+                                }
+                                try (OutputStream outputStream = child.getOutputStream(this)){
+                                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+                                    writer.write(simpleDateFormat.format(new Date()) + System.lineSeparator());
+                                    writer.flush();
+                                    if (lastModify != null) {
+                                        for (Module module : modules) {
+                                            Map<String, VirtualFile> virtualFiles = moduleOutputFilter.filterModuleOutput(module);
+                                            List<String> strings = new ArrayList<>(virtualFiles.keySet());
+                                            Collections.sort(strings);
+                                            for (String relPath : strings) {
+                                                transfer(openProject, module, relPath, virtualFiles.get(relPath), s -> {
+                                                    try {
+                                                        writer.write(s + System.lineSeparator());
+                                                        writer.flush();
+                                                    } catch (IOException e) {
+                                                        e.printStackTrace();
+                                                    }
+                                                });
+                                            }
                                         }
                                     }
                                 }
@@ -72,12 +86,6 @@ public class ColdSwapAction
                                 e.printStackTrace();
                             }
                         }
-                        // FIXME re-enable writing to the file
-//                        OutputStream outputStream = child.getOutputStream(this);
-//                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-//                        writer.write(simpleDateFormat.format(new Date()));
-//                        writer.flush();
-//                        writer.close();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -88,16 +96,30 @@ public class ColdSwapAction
         logger.info("Action performed");
     }
 
-    private void transfer(Project project, Module module, String relPath, VirtualFile virtualFile) {
+    private void transfer(Project project, Module module, String relPath, VirtualFile virtualFile, Consumer<String> logger) {
         ColdSwapConfigurationStoreObject instance = ColdSwapConfigurationStoreObject.getInstance(project);
         List<ColdSwapDestinationBaseDirConfig> destinationDirs = instance.getDestinationDirs();
         for (ColdSwapDestinationBaseDirConfig destinationDir : destinationDirs) {
+            List<String> exclusions = destinationDir.getExclusions();
+            boolean shouldBeExcluded = false;
+            if (exclusions != null) {
+                for (String exclusion : exclusions) {
+                    exclusion = exclusion.replace("*", "");
+                    if (virtualFile.getName().endsWith(exclusion)) {
+                        shouldBeExcluded = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldBeExcluded) {
+                continue;
+            }
             switch (destinationDir.getType()) {
-                case JAR:
-                    new DestinationJarTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile);
+                case Jar:
+                    new DestinationJarTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, logger);
                     break;
-                case EXTRACTED:
-                    new DestinationExtractedTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile);
+                case Extracted:
+                    new DestinationExtractedTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, logger);
                     break;
                 default:
                     break;

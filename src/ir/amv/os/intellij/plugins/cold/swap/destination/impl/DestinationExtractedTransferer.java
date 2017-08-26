@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.function.Consumer;
 
 public class DestinationExtractedTransferer
         implements IDestinationTransferer {
@@ -23,7 +24,7 @@ public class DestinationExtractedTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile) {
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, Consumer<String> logger) {
         File searchResult = searchRec(baseRootPath, fqn, "");
         if (searchResult != null) {
             Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult);
@@ -41,11 +42,13 @@ public class DestinationExtractedTransferer
                         }
                         if (!exists) {
                             try {
+                                logger.accept("Removing " + destChild.getCanonicalPath() + " ...");
                                 if (destChild.isDirectory()) {
                                     deleteDirectory(destChild);
                                 } else {
                                     Files.delete(Paths.get(destChild.toURI()));
                                 }
+                                logger.accept("Removed " + destChild.getCanonicalPath());
                             } catch (IOException e) {
                             }
                         }
@@ -63,16 +66,21 @@ public class DestinationExtractedTransferer
                                 Path newFilePath = Paths.get(URI.create(searchResult.toURI() + child.getName()));
                                 if (child.isDirectory()) {
                                     Files.createDirectory(newFilePath);
+                                    logger.accept("Added " + newFilePath);
                                 } else {
+                                    logger.accept("Adding " + newFilePath + "...");
                                     newFilePath = Files.createFile(newFilePath);
                                     Files.copy(child.getInputStream(), newFilePath, StandardCopyOption.REPLACE_EXISTING);
+                                    logger.accept("Added " + newFilePath);
                                 }
                             } catch (IOException e) {
                             }
                         }
                     }
                 } else {
+                    logger.accept("Updating " + searchResult.getCanonicalPath() + " ...");
                     Files.copy(virtualFile.getInputStream(), Paths.get(searchResult.toURI()), StandardCopyOption.REPLACE_EXISTING);
+                    logger.accept("Updated " + searchResult.getCanonicalPath());
                 }
             } catch (IOException e) {
                 e.printStackTrace();

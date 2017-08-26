@@ -48,7 +48,7 @@ public class ColdSwapConfigurationPanel implements ConfigurableUi<ColdSwapConfig
     }
 
     private void addJarPath(Project project) {
-        BaseAddDirDialog d = new BaseAddDirDialog(jarBasePathsPanel, project, ColdSwapDestinationBaseDirConfig.DestinationType.JAR);
+        BaseAddDirDialog d = new BaseAddDirDialog(jarBasePathsPanel, project, ColdSwapDestinationBaseDirConfig.DestinationType.Jar);
         if (d.showAndGet()) {
             ColdSwapDestinationBaseDirConfig dirConf = d.getDirConf();
             jarPathsListModel.add(jarPathsListModel.size(), dirConf);
@@ -63,7 +63,7 @@ public class ColdSwapConfigurationPanel implements ConfigurableUi<ColdSwapConfig
     }
 
     private void addExtractedPath(Project project) {
-        BaseAddDirDialog d = new BaseAddDirDialog(extractedPathsPanel, project, ColdSwapDestinationBaseDirConfig.DestinationType.EXTRACTED);
+        BaseAddDirDialog d = new BaseAddDirDialog(extractedPathsPanel, project, ColdSwapDestinationBaseDirConfig.DestinationType.Extracted);
         if (d.showAndGet()) {
             ColdSwapDestinationBaseDirConfig dirConf = d.getDirConf();
             extractedPathsListModel.add(extractedPathsListModel.size(), dirConf);
@@ -76,7 +76,7 @@ public class ColdSwapConfigurationPanel implements ConfigurableUi<ColdSwapConfig
         extractedPathsListModel.clear();
         List<ColdSwapDestinationBaseDirConfig> destinationDirs = coldSwapConfigurationStoreObject.getDestinationDirs();
         for (ColdSwapDestinationBaseDirConfig destinationDir : destinationDirs) {
-            if (destinationDir.getType().equals(ColdSwapDestinationBaseDirConfig.DestinationType.JAR)) {
+            if (destinationDir.getType().equals(ColdSwapDestinationBaseDirConfig.DestinationType.Jar)) {
                 jarPathsListModel.add(jarPathsListModel.size(), destinationDir);
             } else {
                 extractedPathsListModel.add(extractedPathsListModel.size(), destinationDir);
