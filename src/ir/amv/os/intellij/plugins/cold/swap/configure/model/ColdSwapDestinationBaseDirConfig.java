@@ -41,4 +41,34 @@ public class ColdSwapDestinationBaseDirConfig {
     public void setType(DestinationType type) {
         this.type = type;
     }
+
+    @Override
+    public String toString() {
+        String result = baseDirPath;
+        if (exclusions != null && !exclusions.isEmpty()) {
+            result +=  '\'' +
+                    ", exclusions=" + exclusions;
+        }
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ColdSwapDestinationBaseDirConfig that = (ColdSwapDestinationBaseDirConfig) o;
+
+        if (baseDirPath != null ? !baseDirPath.equals(that.baseDirPath) : that.baseDirPath != null) return false;
+        if (exclusions != null ? !exclusions.equals(that.exclusions) : that.exclusions != null) return false;
+        return type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = baseDirPath != null ? baseDirPath.hashCode() : 0;
+        result = 31 * result + (exclusions != null ? exclusions.hashCode() : 0);
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        return result;
+    }
 }

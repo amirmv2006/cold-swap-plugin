@@ -4,6 +4,7 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
 import ir.amv.os.intellij.plugins.cold.swap.configure.gui.ColdSwapConfigurationPanel;
+import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapConfigurationStoreObject;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,16 +38,16 @@ public class ColdSwapConfigurable
     public JComponent createComponent() {
         configurationPanel = new ColdSwapConfigurationPanel();
         configurationPanel.initialize(project);
-        return configurationPanel.getRootPanel();
+        return configurationPanel.getComponent();
     }
 
     @Override
     public boolean isModified() {
-        return false;
+        return configurationPanel.isModified(ColdSwapConfigurationStoreObject.getInstance(project));
     }
 
     @Override
     public void apply() throws ConfigurationException {
-
+        configurationPanel.apply(ColdSwapConfigurationStoreObject.getInstance(project));
     }
 }
