@@ -3,6 +3,7 @@ package ir.amv.os.intellij.plugins.cold.swap.configure;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
+import ir.amv.os.intellij.plugins.cold.swap.configure.gui.ColdSwapConfigurationPanel;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -35,7 +36,7 @@ public class ColdSwapConfigurable
     @Override
     public JComponent createComponent() {
         configurationPanel = new ColdSwapConfigurationPanel();
-        configurationPanel.initialize();
+        configurationPanel.initialize(project);
         return configurationPanel.getRootPanel();
     }
 
