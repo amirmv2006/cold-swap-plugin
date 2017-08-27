@@ -3,6 +3,7 @@ package ir.amv.os.intellij.plugins.cold.swap.destination.impl;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
+import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationNameMatcher;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
 
@@ -28,8 +29,8 @@ public class DestinationJarTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile, Consumer<String> logger) {
-        SearchResult searchResult = null;
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, List<String> exclusions, Consumer<String> logger) {
+        SearchResult searchResult;
         try {
             searchResult = searchRec(baseRootPath, fqn, module);
             if (searchResult != null) {
@@ -46,7 +47,7 @@ public class DestinationJarTransferer
                                 break;
                             }
                         }
-                        if (!exists) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), exclusions)) {
                             modifications.add(new JarModification(JarModification.ModificationType.delete, destChild, null));
                         }
                     }
@@ -58,7 +59,7 @@ public class DestinationJarTransferer
                                 break;
                             }
                         }
-                        if (!exists) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), exclusions)) {
                             modifications.add(new JarModification(JarModification.ModificationType.add, new JarEntry(fqn + "/" + child.getName()), child));
                         }
                     }
@@ -74,7 +75,7 @@ public class DestinationJarTransferer
         }
     }
 
-    private List<JarEntry> getJarEntriesUnder(File file, String parent) {
+    private List<JarEntry> getJarEntriesUnder(File file, String parent) throws IOException {
         List<JarEntry> result = new ArrayList<>();
         try (JarFile jarFile = new JarFile(file)) {
             Enumeration jarEntries = jarFile.entries();
@@ -88,7 +89,6 @@ public class DestinationJarTransferer
                     }
                 }
             }
-        } catch (IOException e) {
         }
         return result;
     }
@@ -96,6 +96,7 @@ public class DestinationJarTransferer
     private SearchResult searchRec(File file, String fqn, Module module) throws IOException {
         if (file.isDirectory()) {
             File[] children = file.listFiles();
+            assert children != null;
             for (File child : children) {
                 SearchResult searchRec = searchRec(child, fqn, module);
                 if (searchRec != null) {
@@ -121,7 +122,7 @@ public class DestinationJarTransferer
         private JarEntry jarEntry;
         private File file;
 
-        public SearchResult(JarEntry jarEntry, File file) {
+        SearchResult(JarEntry jarEntry, File file) {
             this.jarEntry = jarEntry;
             this.file = file;
         }
@@ -131,27 +132,34 @@ public class DestinationJarTransferer
         private enum ModificationType {
             add,
             delete,
-            update
+            update;
+
+            public String log() {
+                switch (this) {
+                    case add: return    "Inserting";
+                    case delete: return "Deleting";
+                    case update: return "Updating";
+                }
+                return super.toString();
+            }
         }
 
         private ModificationType modificationType;
         private JarEntry jarEntry; // existing zip entry
         private VirtualFile newFile; // newFileContent
 
-        public JarModification(ModificationType modificationType, JarEntry jarEntry, VirtualFile newFile) {
+        JarModification(ModificationType modificationType, JarEntry jarEntry, VirtualFile newFile) {
             this.modificationType = modificationType;
             this.jarEntry = jarEntry;
             this.newFile = newFile;
         }
     }
 
-    public static void updateJarFile(File srcJarFile, List<JarModification> modifications, Consumer<String> logger) throws IOException {
+    private static void updateJarFile(File srcJarFile, List<JarModification> modifications, Consumer<String> logger) throws IOException {
         File srcJarTmp = new File(srcJarFile.getCanonicalPath() + ".bak");
         Files.copy(new FileInputStream(srcJarFile), Paths.get(srcJarTmp.toURI()));
         File tmpJarFile = new File(srcJarFile.getCanonicalPath());
-        JarFile jarFile = new JarFile(srcJarTmp);
-        boolean jarUpdated = false;
-        try {
+        try (JarFile jarFile = new JarFile(srcJarTmp)) {
             JarOutputStream tempJarOutputStream = new JarOutputStream(new FileOutputStream(tmpJarFile));
 
             try {
@@ -164,14 +172,13 @@ public class DestinationJarTransferer
                         if (entry.getName().startsWith(modification.jarEntry.getName())) {
                             if (modification.modificationType.equals(JarModification.ModificationType.delete)) {
                                 skip = true;
-                                logger.accept("Removing " + modification.jarEntry.getName() + " from " + srcJarFile.getCanonicalPath());
+                                logger.accept("[JarUpdateAction]\tRemoving\t" + entry.getName() + " from " + srcJarFile.getCanonicalPath());
                                 break;
                             }
                         }
                         if (entry.getName().equals(modification.jarEntry.getName())) {
                             if (modification.modificationType.equals(JarModification.ModificationType.update)) {
                                 skip = true;
-                                logger.accept("Removing old content for " + modification.jarEntry.getName() + " in " + srcJarFile.getCanonicalPath());
                                 break;
                             }
                         }
@@ -180,12 +187,10 @@ public class DestinationJarTransferer
                         continue;
                     }
                     InputStream entryInputStream = jarFile.getInputStream(entry);
-                    int bytesRead = 0;
+                    int bytesRead;
                     byte[] buffer = new byte[1024];
                     bytesRead = entryInputStream.read(buffer);
-                    if (bytesRead != -1) {
-                        tempJarOutputStream.putNextEntry(entry);
-                    }
+                    tempJarOutputStream.putNextEntry(entry);
                     while (bytesRead != -1) {
                         tempJarOutputStream.write(buffer, 0, bytesRead);
                         bytesRead = entryInputStream.read(buffer);
@@ -195,22 +200,25 @@ public class DestinationJarTransferer
                 for (JarModification modification : modifications) {
                     if (modification.modificationType.equals(JarModification.ModificationType.update) ||
                             modification.modificationType.equals(JarModification.ModificationType.add)) {
-                        JarEntry entry = new JarEntry(modification.jarEntry.getName());
+                        String entryName = modification.jarEntry.getName();
+                        if (modification.newFile.isDirectory() && !entryName.endsWith("/")) {
+                            entryName += "/";
+                        }
+                        JarEntry entry = new JarEntry(entryName);
                         tempJarOutputStream.putNextEntry(entry);
                         if (!modification.newFile.isDirectory()) {
                             try (InputStream fis = modification.newFile.getInputStream()) {
                                 byte[] buffer = new byte[1024];
-                                int bytesRead = 0;
+                                int bytesRead;
                                 while ((bytesRead = fis.read(buffer)) != -1) {
                                     tempJarOutputStream.write(buffer, 0, bytesRead);
                                 }
                             }
                         }
                         tempJarOutputStream.closeEntry();
-                        logger.accept("Performing '" + modification.modificationType + "' on " + modification.jarEntry.getName() + " in " + srcJarFile.getCanonicalPath());
+                        logger.accept("[JarUpdateAction]\t" + modification.modificationType.log() + "\t" + modification.jarEntry.getName() + " in " + srcJarFile.getCanonicalPath());
                     }
                 }
-                jarUpdated = true;
             } catch (Exception ex) {
                 ex.printStackTrace();
                 tempJarOutputStream.putNextEntry(new JarEntry("stub"));
@@ -218,8 +226,6 @@ public class DestinationJarTransferer
                 tempJarOutputStream.close();
             }
 
-        } finally {
-            jarFile.close();
         }
 
         srcJarTmp.delete();

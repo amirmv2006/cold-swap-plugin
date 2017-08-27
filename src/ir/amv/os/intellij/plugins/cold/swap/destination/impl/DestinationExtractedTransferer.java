@@ -3,6 +3,7 @@ package ir.amv.os.intellij.plugins.cold.swap.destination.impl;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
+import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
 
 import java.io.File;
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class DestinationExtractedTransferer
@@ -24,7 +26,7 @@ public class DestinationExtractedTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile, Consumer<String> logger) {
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, List<String> exclusions, Consumer<String> logger) {
         File searchResult = searchRec(baseRootPath, fqn, "");
         if (searchResult != null) {
             Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult);
@@ -40,15 +42,14 @@ public class DestinationExtractedTransferer
                                 break;
                             }
                         }
-                        if (!exists) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), exclusions)) {
                             try {
-                                logger.accept("Removing " + destChild.getCanonicalPath() + " ...");
                                 if (destChild.isDirectory()) {
                                     deleteDirectory(destChild);
                                 } else {
                                     Files.delete(Paths.get(destChild.toURI()));
                                 }
-                                logger.accept("Removed " + destChild.getCanonicalPath());
+                                logger.accept("[ExtractedAction]\tRemoved\t\t" + destChild.getCanonicalPath());
                             } catch (IOException e) {
                             }
                         }
@@ -61,26 +62,24 @@ public class DestinationExtractedTransferer
                                 break;
                             }
                         }
-                        if (!exists) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), exclusions)) {
                             try {
                                 Path newFilePath = Paths.get(URI.create(searchResult.toURI() + child.getName()));
                                 if (child.isDirectory()) {
                                     Files.createDirectory(newFilePath);
-                                    logger.accept("Added " + newFilePath);
+                                    logger.accept("[ExtractedAction]\tAdded\t\t" + newFilePath);
                                 } else {
-                                    logger.accept("Adding " + newFilePath + "...");
                                     newFilePath = Files.createFile(newFilePath);
                                     Files.copy(child.getInputStream(), newFilePath, StandardCopyOption.REPLACE_EXISTING);
-                                    logger.accept("Added " + newFilePath);
+                                    logger.accept("[ExtractedAction]\tAdded\t\t" + newFilePath);
                                 }
                             } catch (IOException e) {
                             }
                         }
                     }
                 } else {
-                    logger.accept("Updating " + searchResult.getCanonicalPath() + " ...");
                     Files.copy(virtualFile.getInputStream(), Paths.get(searchResult.toURI()), StandardCopyOption.REPLACE_EXISTING);
-                    logger.accept("Updated " + searchResult.getCanonicalPath());
+                    logger.accept("[ExtractedAction]\tUpdated\t\t" + searchResult.getCanonicalPath());
                 }
             } catch (IOException e) {
                 e.printStackTrace();

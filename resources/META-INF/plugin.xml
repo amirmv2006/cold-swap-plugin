@@ -33,7 +33,8 @@
   <actions>
     <!-- Add your actions here -->
     <action class="ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction" id="coldSwapAction" text="Cold Swap" description="Cold Swap" icon="/icons/cold-swap.png">
-        <add-to-group group-id="RunMenu" anchor="first"/>
+        <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
+        <keyboard-shortcut first-keystroke="control F5" keymap="$default"/>
     </action>
   </actions>
 
