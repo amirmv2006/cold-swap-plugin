@@ -114,10 +114,10 @@ public class ColdSwapAction
             }
             switch (destinationDir.getType()) {
                 case Jar:
-                    new DestinationJarTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, exclusions, logger);
+                    new DestinationJarTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, destinationDir, logger);
                     break;
                 case Extracted:
-                    new DestinationExtractedTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, exclusions, logger);
+                    new DestinationExtractedTransferer(new File(destinationDir.getBaseDirPath())).transfer(module, relPath, virtualFile, destinationDir, logger);
                     break;
                 default:
                     break;

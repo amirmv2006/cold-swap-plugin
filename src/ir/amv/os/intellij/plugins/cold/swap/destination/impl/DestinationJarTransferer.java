@@ -4,6 +4,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
 import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
+import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapDestinationBaseDirConfig;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationNameMatcher;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
 
@@ -29,10 +30,10 @@ public class DestinationJarTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile, List<String> exclusions, Consumer<String> logger) {
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, ColdSwapDestinationBaseDirConfig destDir, Consumer<String> logger) {
         SearchResult searchResult;
         try {
-            searchResult = searchRec(baseRootPath, fqn, module);
+            searchResult = searchRec(baseRootPath, fqn, module, destDir);
             if (searchResult != null) {
                 Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult.file + " -> " + searchResult.jarEntry);
                 List<JarModification> modifications = new ArrayList<>();
@@ -47,7 +48,7 @@ public class DestinationJarTransferer
                                 break;
                             }
                         }
-                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), exclusions)) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), destDir.getExclusions())) {
                             modifications.add(new JarModification(JarModification.ModificationType.delete, destChild, null));
                         }
                     }
@@ -59,7 +60,7 @@ public class DestinationJarTransferer
                                 break;
                             }
                         }
-                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), exclusions)) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), destDir.getExclusions())) {
                             modifications.add(new JarModification(JarModification.ModificationType.add, new JarEntry(fqn + "/" + child.getName()), child));
                         }
                     }
@@ -93,18 +94,18 @@ public class DestinationJarTransferer
         return result;
     }
 
-    private SearchResult searchRec(File file, String fqn, Module module) throws IOException {
+    private SearchResult searchRec(File file, String fqn, Module module, ColdSwapDestinationBaseDirConfig destDir) throws IOException {
         if (file.isDirectory()) {
             File[] children = file.listFiles();
             assert children != null;
             for (File child : children) {
-                SearchResult searchRec = searchRec(child, fqn, module);
+                SearchResult searchRec = searchRec(child, fqn, module, destDir);
                 if (searchRec != null) {
                     return searchRec;
                 }
             }
         } else {
-            if (file.getName().toLowerCase().endsWith(".jar") && nameMatcher.matches(module.getName(), file.getName())) {
+            if (file.getName().toLowerCase().endsWith(".jar") && nameMatcher.matches(module.getName(), file.getName(), destDir)) {
                 JarFile jarFile = new JarFile(file);
                 Enumeration<JarEntry> entries = jarFile.entries();
                 while (entries.hasMoreElements()) {

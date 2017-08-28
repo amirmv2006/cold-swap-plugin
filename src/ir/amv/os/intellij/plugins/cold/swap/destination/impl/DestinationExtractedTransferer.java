@@ -4,6 +4,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.vfs.VirtualFile;
 import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
+import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapDestinationBaseDirConfig;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
 
 import java.io.File;
@@ -13,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.function.Consumer;
 
 public class DestinationExtractedTransferer
@@ -26,7 +26,7 @@ public class DestinationExtractedTransferer
     }
 
     @Override
-    public void transfer(Module module, String fqn, VirtualFile virtualFile, List<String> exclusions, Consumer<String> logger) {
+    public void transfer(Module module, String fqn, VirtualFile virtualFile, ColdSwapDestinationBaseDirConfig destDir, Consumer<String> logger) {
         File searchResult = searchRec(baseRootPath, fqn, "");
         if (searchResult != null) {
             Logger.getInstance(DestinationExtractedTransferer.class).warn("should transfer " + virtualFile + " to " + searchResult);
@@ -42,7 +42,7 @@ public class DestinationExtractedTransferer
                                 break;
                             }
                         }
-                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), exclusions)) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(destChild.getName(), destDir.getExclusions())) {
                             try {
                                 if (destChild.isDirectory()) {
                                     deleteDirectory(destChild);
@@ -62,7 +62,7 @@ public class DestinationExtractedTransferer
                                 break;
                             }
                         }
-                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), exclusions)) {
+                        if (!exists && !ColdSwapAction.shouldBeExcluded(child.getName(), destDir.getExclusions())) {
                             try {
                                 Path newFilePath = Paths.get(URI.create(searchResult.toURI() + child.getName()));
                                 if (child.isDirectory()) {

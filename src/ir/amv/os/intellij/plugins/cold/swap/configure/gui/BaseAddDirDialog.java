@@ -8,7 +8,6 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
-import com.intellij.ui.PopupMenuListenerAdapter;
 import com.intellij.ui.ToolbarDecorator;
 import com.intellij.util.Consumer;
 import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapDestinationBaseDirConfig;
@@ -19,8 +18,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.PopupMenuEvent;
-import javax.swing.event.PopupMenuListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -30,13 +27,18 @@ import java.util.Enumeration;
 
 public class BaseAddDirDialog extends DialogWrapper {
     private final DefaultListModel<String> exclusionsListModel;
+    private final DefaultListModel<String> regexListModel;
     private JPanel contentPane;
     private TextFieldWithBrowseButton basePathChooser;
     private JList<String> exclusionsList;
     private JPanel exclusionsPanel;
+    private JPanel regexPanel;
+    private JList<String> regexList;
     private ColdSwapDestinationBaseDirConfig.DestinationType type;
     private JPopupMenu editExclusionPopup;
     private JTextField editExclusionTextField;
+    private JPopupMenu editRegexPopup;
+    private JTextField editRegexTextField;
 
     public BaseAddDirDialog(JPanel panel, Project project, ColdSwapDestinationBaseDirConfig.DestinationType type) {
         super(project, false);
@@ -45,12 +47,21 @@ public class BaseAddDirDialog extends DialogWrapper {
         setTitle("Base path directory for " + type);
         exclusionsListModel = new DefaultListModel<>();
         exclusionsList.setModel(exclusionsListModel);
-        ToolbarDecorator toolbarDecorator = ToolbarDecorator.createDecorator(exclusionsList)
+        ToolbarDecorator exclusionsToolbarDecorator = ToolbarDecorator.createDecorator(exclusionsList)
                 .setAddAction(e -> addExclusion())
                 .setRemoveAction(e -> removeExclusion())
                 .disableUpDownActions();
-        exclusionsPanel.add(toolbarDecorator.createPanel(), BorderLayout.CENTER);
-        createEditPopup();
+        exclusionsPanel.add(exclusionsToolbarDecorator.createPanel(), BorderLayout.CENTER);
+        createEditExclusionPopup();
+        regexListModel = new DefaultListModel<>();
+        regexListModel.add(0, "[^a-zA-Z]");
+        regexList.setModel(regexListModel);
+        ToolbarDecorator regexToolbarDecorator = ToolbarDecorator.createDecorator(regexList)
+                .setAddAction(e -> addRegex())
+                .setRemoveAction(e -> removeRegex())
+                .disableUpDownActions();
+        regexPanel.add(regexToolbarDecorator.createPanel(), BorderLayout.CENTER);
+        createEditRegexPopup();
         // call onCancel() on ESCAPE
         contentPane.registerKeyboardAction(e -> onCancel(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
@@ -79,11 +90,11 @@ public class BaseAddDirDialog extends DialogWrapper {
 
     private void addExclusion() {
         if (!editExclusionPopup.isVisible()) {
-            showEditPopup();
+            showEditExclusionsPopup();
         }
     }
 
-    private void showEditPopup() {
+    private void showEditExclusionsPopup() {
         editExclusionTextField.setText("");
         editExclusionTextField.setPreferredSize(new Dimension(exclusionsList.getWidth(), 20));
         int x = 0;
@@ -98,7 +109,7 @@ public class BaseAddDirDialog extends DialogWrapper {
         editExclusionTextField.grabFocus();
     }
 
-    private void createEditPopup() {
+    private void createEditExclusionPopup() {
         editExclusionPopup = new JPopupMenu();
         editExclusionTextField = new JTextField();
         Border border = UIManager.getBorder("List.focusCellHighlightBorder");
@@ -120,6 +131,58 @@ public class BaseAddDirDialog extends DialogWrapper {
 
         editExclusionPopup.setBorder( new EmptyBorder(0, 0, 0, 0) );
         editExclusionPopup.add(editExclusionTextField);
+    }
+
+    private void removeRegex() {
+        int[] selectedIndices = regexList.getSelectedIndices();
+        for (int i = selectedIndices.length - 1; i >= 0; i--) {
+            regexListModel.remove(selectedIndices[i]);
+        }
+    }
+
+    private void addRegex() {
+        if (!editRegexPopup.isVisible()) {
+            showRegexEditPopup();
+        }
+    }
+
+    private void showRegexEditPopup() {
+        editRegexTextField.setText("");
+        editRegexTextField.setPreferredSize(new Dimension(regexList.getWidth(), 20));
+        int x = 0;
+        int y = 0;
+        if (!regexListModel.isEmpty()) {
+            int lastItemIndex = regexListModel.size() - 1;
+            Rectangle lastCellBounds = regexList.getCellBounds(lastItemIndex, lastItemIndex);
+            x = lastCellBounds.x;
+            y = lastCellBounds.y + lastCellBounds.height;
+        }
+        editRegexPopup.show(regexList, x, y);
+        editRegexTextField.grabFocus();
+    }
+
+    private void createEditRegexPopup() {
+        editRegexPopup = new JPopupMenu();
+        editRegexTextField = new JTextField();
+        Border border = UIManager.getBorder("List.focusCellHighlightBorder");
+        editRegexTextField.setBorder( border );
+
+        //  Add an Action to the text field to save the new value to the model
+
+        editRegexTextField.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent e)
+            {
+                String value = editRegexTextField.getText();
+                regexListModel.add(regexListModel.size(), value);
+                editRegexPopup.setVisible(false);
+            }
+        });
+
+        //  Add the editor to the popup
+
+        editRegexPopup.setBorder( new EmptyBorder(0, 0, 0, 0) );
+        editRegexPopup.add(editRegexTextField);
     }
 
     public static void selectConfigurationDirectory(@NotNull String path,
@@ -171,6 +234,14 @@ public class BaseAddDirDialog extends DialogWrapper {
                 exclusions.add(elements.nextElement());
             }
             result.setExclusions(exclusions);
+        }
+        if (!regexListModel.isEmpty()) {
+            ArrayList<String> regexs = new ArrayList<>();
+            Enumeration<String> elements = regexListModel.elements();
+            while (elements.hasMoreElements()) {
+                regexs.add(elements.nextElement());
+            }
+            result.setRegexToBeRemoved(regexs);
         }
         return result;
     }
