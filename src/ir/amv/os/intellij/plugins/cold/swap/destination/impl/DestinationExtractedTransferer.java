@@ -6,6 +6,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
 import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapDestinationBaseDirConfig;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
+import ir.amv.os.intellij.plugins.cold.swap.tools.ExceptionStackTraceWriter;
 
 import java.io.File;
 import java.io.IOException;
@@ -82,7 +83,7 @@ public class DestinationExtractedTransferer
                     logger.accept("[ExtractedAction]\tUpdated\t\t" + searchResult.getCanonicalPath());
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                ExceptionStackTraceWriter.printStackTrace(e, logger);
             }
         }
     }

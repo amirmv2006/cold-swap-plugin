@@ -7,6 +7,7 @@ import ir.amv.os.intellij.plugins.cold.swap.action.ColdSwapAction;
 import ir.amv.os.intellij.plugins.cold.swap.configure.model.ColdSwapDestinationBaseDirConfig;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationNameMatcher;
 import ir.amv.os.intellij.plugins.cold.swap.destination.IDestinationTransferer;
+import ir.amv.os.intellij.plugins.cold.swap.tools.ExceptionStackTraceWriter;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -72,7 +73,7 @@ public class DestinationJarTransferer
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            ExceptionStackTraceWriter.printStackTrace(e, logger);
         }
     }
 
@@ -191,7 +192,7 @@ public class DestinationJarTransferer
                     int bytesRead;
                     byte[] buffer = new byte[1024];
                     bytesRead = entryInputStream.read(buffer);
-                    tempJarOutputStream.putNextEntry(entry);
+                    tempJarOutputStream.putNextEntry(new JarEntry(entry.getName()));
                     while (bytesRead != -1) {
                         tempJarOutputStream.write(buffer, 0, bytesRead);
                         bytesRead = entryInputStream.read(buffer);
@@ -226,9 +227,7 @@ public class DestinationJarTransferer
             } finally {
                 tempJarOutputStream.close();
             }
-
         }
-
         srcJarTmp.delete();
     }
 }

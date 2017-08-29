@@ -17,6 +17,7 @@ import ir.amv.os.intellij.plugins.cold.swap.destination.impl.DestinationExtracte
 import ir.amv.os.intellij.plugins.cold.swap.destination.impl.DestinationJarTransferer;
 import ir.amv.os.intellij.plugins.cold.swap.filter.IModuleOutputFilter;
 import ir.amv.os.intellij.plugins.cold.swap.filter.impl.ModuleOutputFilterByDateImpl;
+import ir.amv.os.intellij.plugins.cold.swap.tools.ExceptionStackTraceWriter;
 
 import java.io.*;
 import java.text.ParseException;
@@ -80,7 +81,7 @@ public class ColdSwapAction
                                                         writer.write(s + System.lineSeparator());
                                                         writer.flush();
                                                     } catch (IOException e) {
-                                                        e.printStackTrace();
+                                                        ExceptionStackTraceWriter.printStackTrace(e, s1 -> logger.error("Error writing", e));
                                                     }
                                                 });
                                             }
@@ -91,11 +92,11 @@ public class ColdSwapAction
                                     }
                                 }
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                ExceptionStackTraceWriter.printStackTrace(e, s -> logger.error("Unknnown Error", e));
                             }
                         }
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        ExceptionStackTraceWriter.printStackTrace(e, s -> logger.error("Unknnown Error", e));
                     }
                 }
             });
